@@ -66,7 +66,8 @@ module Dependabot
             end.flatten.compact
 
           raise PrivateSourceAuthenticationFailure, forbidden_urls.first if version_details.none? && forbidden_urls.any?
-
+          
+          gradle_distribution_metadata(repositories[0])
           version_details.sort_by { |details| details.fetch(:version) }
         end
 
@@ -176,6 +177,13 @@ module Dependabot
 
               Nokogiri::XML("")
             end
+        end
+
+        def gradle_distribution_metadata(repository_details)
+          response = Dependabot::RegistryClient.get(
+            url: "https://services.gradle.org/versions/all"
+          )
+          parsed = JSON.parse(response.body)
         end
 
         def repository_urls
