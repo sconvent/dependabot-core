@@ -20,6 +20,8 @@ module Dependabot
 
       SUPPORTED_BUILD_FILE_NAMES = %w(build.gradle build.gradle.kts settings.gradle settings.gradle.kts).freeze
 
+      SUPPORTED_WRAPPER_PROPERTY_FILE_NAME = "gradle-wrapper.properties"
+
       PROPERTY_REGEX =
         /
           (?:\$\{property\((?<property_name>[^:\s]*?)\)\})|
@@ -36,6 +38,8 @@ module Dependabot
       PLUGIN_BLOCK_DECLARATION_REGEX = /(?:^|\s)plugins\s*\{/
       PLUGIN_ID_REGEX = /['"](?<id>#{PART})['"]/
 
+      DISTRIBUTION_URL_REGEX = /\s*distributionUrl=(?<distributionUrl>[^\s]+)\s*/
+
       def parse
         dependency_set = DependencySet.new
         buildfiles.each do |buildfile|
@@ -43,6 +47,9 @@ module Dependabot
         end
         script_plugin_files.each do |plugin_file|
           dependency_set += buildfile_dependencies(plugin_file)
+        end
+        gradle_wrapper_properties_files.each do |property_file|
+          dependency_set += buildfile_dependencies(property_file)
         end
         dependency_set.dependencies
       end
@@ -73,6 +80,7 @@ module Dependabot
         dependency_set += keyword_arg_buildfile_dependencies(buildfile)
         dependency_set += dependency_set_dependencies(buildfile)
         dependency_set += plugin_dependencies(buildfile)
+        dependency_set += wrapper_distribtion_dependencies(buildfile)
 
         dependency_set
       end
@@ -169,6 +177,24 @@ module Dependabot
             dependency_set << dep if dep
           end
         end
+
+        dependency_set
+      end
+
+      def wrapper_distribtion_dependencies(buildfile)
+        dependency_set = DependencySet.new
+
+        prepared_content(buildfile).scan(DISTRIBUTION_URL_REGEX) do
+          declaration = Regexp.last_match.named_captures.fetch("distributionUrl")
+
+          #group, name, version = declaration.split(":")
+          #version, _packaging_type = version.split("@")
+          #details = { group: group, name: name, version: version }
+
+          #dep = dependency_from(details_hash: details, buildfile: buildfile)
+          #dependency_set << dep if dep
+        end
+
 
         dependency_set
       end
@@ -320,6 +346,12 @@ module Dependabot
             FileParser.find_includes(buildfile, dependency_files)
           end.
           uniq
+      end
+
+      def gradle_wrapper_properties_files
+        @gradle_wrapper_properties_files ||= dependency_files.select do |f|
+          f.name.end_with?(SUPPORTED_WRAPPER_PROPERTY_FILE_NAME)
+        end
       end
 
       def check_required_files
