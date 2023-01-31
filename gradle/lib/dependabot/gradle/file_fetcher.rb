@@ -14,6 +14,9 @@ module Dependabot
       SUPPORTED_SETTINGS_FILE_NAMES =
         %w(settings.gradle settings.gradle.kts).freeze
 
+      SUPPORTED_WRAPPER_CONFIG_FILE_LOCATION =
+        %w(/gradle/wrapper/gradle-wrapper.properties).freeze
+
       def self.required_files_in?(filenames)
         filenames.any? do |filename|
           SUPPORTED_BUILD_FILE_NAMES.include?(filename)
@@ -33,7 +36,7 @@ module Dependabot
       end
 
       def all_buildfiles_in_build(root_dir)
-        files = [buildfile(root_dir), settings_file(root_dir)].compact
+        files = [buildfile(root_dir), settings_file(root_dir), wrapper_properties_file(root_dir)].compact
         files += subproject_buildfiles(root_dir)
         files += dependency_script_plugins(root_dir)
         files + included_builds(root_dir).
@@ -129,6 +132,10 @@ module Dependabot
 
       def settings_file(dir)
         find_first(dir, SUPPORTED_SETTINGS_FILE_NAMES)
+      end
+
+      def wrapper_properties_file(dir)
+        find_first(dir, SUPPORTED_WRAPPER_CONFIG_FILE_LOCATION)
       end
 
       def find_first(dir, supported_names)
